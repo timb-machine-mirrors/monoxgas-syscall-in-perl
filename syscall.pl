@@ -4,44 +4,47 @@ use Fcntl;
 use 5.008001; # because 5.6 doesn't have B::PV::object_2svref
 use Config;
 use B (); # for B::PV
-print "\nPerl $] in [$$]\n";
+
 sub mmap {
   my ($addr, $size, $protect, $flags) = @_;
   syscall(197, $addr, $size, $protect, $flags, -1, 0);
 }
+
 sub mmap_with_fd {
   my ($addr, $size, $protect, $flags, $fd) = @_;
   syscall(197, $addr, $size, $protect, $flags, $fd, 0);
 }
+
 sub mprotect {
   my ($addr, $size, $protect) = @_;
   syscall(74, $addr, $size, $protect);
 }
+
 sub shm_open {
   my ($name, $flags, $mode) = @_;
   syscall(266, $name, $flags, $mode);
 }
+
 sub ftruncate {
   my ($fd, $length) = @_;
   syscall(201, $fd, $length);
 }
+
+print "\nPerl $] in [$$]\n";
 print("\n---\n");
+
 my $name = "/myshm12";
 my $length = 4096;
-# my $fd = shm_open($name, hex '0x202', 7777);
-# printf("fd: %d [%d]\n", $fd, $!);
-# my $res = ftruncate($fd, $length);
-# printf("truncate: %d [%d]\n", $res, $!);
+
 $addr = 4096 * 10000000;
 $truncated_addr = mmap($addr, $length, 7, hex '0x1012');
 printf("addr: 0x%X/%d\n", $addr, $addr);
 printf("truncated_addr: 0x%X\n", $truncated_addr);
-# my $data = unpack("P8", pack('Q', $addr));
-# printf("\nread(0x%X):\n", $addr);
-# Dump($data);
+
 $str = "Hello world.\n\n";
 printf("&str: 0x%X\n", SVPtr($str));
 printf("str_len: 0x%X", CPtr(length($str)));
+
 my $asmcode = "\x90";
 $asmcode .= "\x48\xc7\xc0\x04\x00\x00\x02"; # mov  rax, 0x2000004
 $asmcode .= "\x48\xc7\xc7\x01\x00\x00\x00"; # mov  rdi, 0x1 ; stdout
@@ -49,17 +52,20 @@ $asmcode .= "\x48\xbe" .  CPtr($str);
 $asmcode .= "\x48\xc7\xc2" .  CInt(length($str));
 $asmcode .= "\x0f\x05";
 $asmcode .= "\xc3";
+
 poke($addr, $asmcode);
 print("\n---\n");
+
 print "\n[+] Making syscall:\n";
 my $func = DynaLoader::dl_install_xsub("_Testing", $addr, __FILE__);  
 &{$func};
+
 sub SVPtr{
  return unpack("Q",pack("p",$_[0]));
-} 
+}
 sub CPtr{
  return pack("p",$_[0]);
-} 
+}
 sub CInt{
  return pack("i",$_[0]);
 }
